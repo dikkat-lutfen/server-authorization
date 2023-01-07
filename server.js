@@ -3,7 +3,9 @@ const bodyParser = require('body-parser')
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const app = express()
+const jwt = require("jsonwebtoken");
 const port=3040;
+
 
 app.use(bodyParser.json())
 app.use(cors({
@@ -59,7 +61,13 @@ app.post("/login",  async (req,res)=>{
  if(user){
     bcrypt.compare (req.body.password, user.password, function(err, result) {
         if(result){
-            res.send(user)
+           // res.send(user) bad develoder return username as authentication. this is bad practice
+           const token = jwt.sign({ id: user._id }, 'secret',{
+            expiresIn: '30s' // expires in 365 days
+ 
+       },
+           );
+           res.send({token});
         }else{
             res.send({message:false})
         }
@@ -70,6 +78,40 @@ app.post("/login",  async (req,res)=>{
  }
 }
 )
+
+
+app.post("/verify",  async (req,res)=>{
+   console.log(req.body)
+   // decrypt the token
+   jwt.verify(req.body.token, 'secret', async (err, decoded)=> {
+    if(err){
+      return res.send({message:"session expired"})
+    
+    }else{
+      console.log(decoded) 
+      const userId = decoded.id
+       //use the id to get the data of user
+       const user = await User.findOne({id:userId})
+       const token = jwt.sign({ id: user._id }, 'secret',{
+        expiresIn: '30s' // expires in 365 days
+      })
+
+      //return the user
+      const data = {
+        username : user.username,
+        token : token
+      }
+       res.send(data)
+    }
+    }
+   )
+  
+  
+
+ }
+ )
+
+
 
 app.listen(port,()=>{
 console.log("app is running port :"+ port)
